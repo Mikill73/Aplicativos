@@ -1,4 +1,4 @@
-cat > src/main/java/com/academia/app/MainActivity.java << 'EOF'
+cat > src/main/java/com/academia/app/MainActivity.java << 'EOF'a
 package com.academia.app;
 
 import android.app.Activity;
