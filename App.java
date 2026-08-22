@@ -1,4 +1,4 @@
-cat > src/main/java/com/academia/app/MainActivity.java << 'EOF'a
+cat > src/main/java/com/academia/app/MainActivity.java << 'EOF'
 package com.academia.app;
 
 import android.app.Activity;
@@ -122,20 +122,23 @@ public class MainActivity extends Activity {
 
     private void verificarPermissoes() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            String[] permissoes = {
-                Manifest.permission.VIBRATE,
-                Manifest.permission.WAKE_LOCK,
-                Manifest.permission.POST_NOTIFICATIONS,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
-            };
             List<String> pendentes = new ArrayList<>();
-            for (String p : permissoes) {
+            pendentes.add(Manifest.permission.VIBRATE);
+            pendentes.add(Manifest.permission.WAKE_LOCK);
+            pendentes.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                pendentes.add(Manifest.permission.POST_NOTIFICATIONS);
+            }
+            
+            List<String> paraSolicitar = new ArrayList<>();
+            for (String p : pendentes) {
                 if (checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) {
-                    pendentes.add(p);
+                    paraSolicitar.add(p);
                 }
             }
-            if (!pendentes.isEmpty()) {
-                requestPermissions(pendentes.toArray(new String[0]), 1);
+            if (!paraSolicitar.isEmpty()) {
+                requestPermissions(paraSolicitar.toArray(new String[0]), 1);
             }
         }
     }
