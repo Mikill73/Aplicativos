@@ -2,17 +2,13 @@ cat > src/main/java/com/academia/app/MainActivity.java << 'EOF'
 package com.academia.app;
 
 import android.app.Activity;
-import android.app.AlarmManager;
 import android.app.DatePickerDialog;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.PowerManager;
 import android.os.Vibrator;
 import android.Manifest;
 import android.view.View;
@@ -68,7 +64,6 @@ public class MainActivity extends Activity {
     private AlertDialog historicoCargaDialog;
     private Vibrator vibrator;
     private static final String CHANNEL_ID = "academia_timer_channel";
-    private static final int NOTIFICATION_ID = 1001;
     private boolean timerEmAndamento = false;
     private Runnable timerCallbackSalvo;
     private long timerInicioTimestamp = 0;
