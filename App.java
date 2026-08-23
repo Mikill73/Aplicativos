@@ -122,8 +122,8 @@ public class MainActivity extends Activity {
             pendentes.add(Manifest.permission.WAKE_LOCK);
             pendentes.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
             
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                pendentes.add(Manifest.permission.POST_NOTIFICATIONS);
+            if (Build.VERSION.SDK_INT >= 33) {
+                pendentes.add("android.permission.POST_NOTIFICATIONS");
             }
             
             List<String> paraSolicitar = new ArrayList<>();
