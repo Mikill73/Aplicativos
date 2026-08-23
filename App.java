@@ -3,13 +3,10 @@ package com.academia.app;
 
 import android.app.Activity;
 import android.app.DatePickerDialog;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Vibrator;
 import android.Manifest;
 import android.view.View;
 import android.widget.*;
@@ -62,13 +59,6 @@ public class MainActivity extends Activity {
     private Context context;
     private AlertDialog historicoPesoDialog;
     private AlertDialog historicoCargaDialog;
-    private Vibrator vibrator;
-    private static final String CHANNEL_ID = "academia_timer_channel";
-    private boolean timerEmAndamento = false;
-    private Runnable timerCallbackSalvo;
-    private long timerInicioTimestamp = 0;
-    private int timerTotalSegundos = 0;
-    private int timerSegundosRestantes = 0;
 
     private int getDiaDaSemanaNumero() {
         Calendar cal = Calendar.getInstance();
@@ -86,104 +76,20 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         context = this;
-        vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
-        criarCanalNotificacao();
         verificarPermissoes();
         carregarDados();
-        verificarPesoReminder();
         setupUI();
         carregarEstadoBotao();
         atualizarTreinoHoje();
         renderDados();
-        verificarTimerSalvo();
-    }
-
-    private void criarCanalNotificacao() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                CHANNEL_ID,
-                "Timer Academia",
-                NotificationManager.IMPORTANCE_HIGH
-            );
-            channel.setDescription("Notificacoes do timer de descanso");
-            channel.enableVibration(true);
-            channel.setSound(null, null);
-            NotificationManager manager = getSystemService(NotificationManager.class);
-            if (manager != null) {
-                manager.createNotificationChannel(channel);
-            }
-        }
     }
 
     private void verificarPermissoes() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            List<String> pendentes = new ArrayList<>();
-            pendentes.add(Manifest.permission.VIBRATE);
-            pendentes.add(Manifest.permission.WAKE_LOCK);
-            pendentes.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-            
-            if (Build.VERSION.SDK_INT >= 33) {
-                pendentes.add("android.permission.POST_NOTIFICATIONS");
-            }
-            
-            List<String> paraSolicitar = new ArrayList<>();
-            for (String p : pendentes) {
-                if (checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) {
-                    paraSolicitar.add(p);
-                }
-            }
-            if (!paraSolicitar.isEmpty()) {
-                requestPermissions(paraSolicitar.toArray(new String[0]), 1);
+            if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
             }
         }
-    }
-
-    private void verificarTimerSalvo() {
-        try {
-            JSONObject academia = configData.getJSONObject("academia");
-            if (academia.has("timerEmAndamento") && academia.getBoolean("timerEmAndamento")) {
-                long inicio = academia.getLong("timerInicioTimestamp");
-                int total = academia.getInt("timerTotalSegundos");
-                long agora = System.currentTimeMillis();
-                long decorrido = (agora - inicio) / 1000;
-                if (decorrido < total) {
-                    timerEmAndamento = true;
-                    timerTotalSegundos = total;
-                    timerSegundosRestantes = total - (int)decorrido;
-                    timerInicioTimestamp = inicio;
-                    aguardandoTimer = true;
-                    iniciarTimerRestaurado(timerSegundosRestantes, () -> {
-                        timerEmAndamento = false;
-                        aguardandoTimer = false;
-                        try {
-                            configData.getJSONObject("academia").put("timerEmAndamento", false);
-                            salvarDados();
-                        } catch (JSONException e) {}
-                        if (timerCallbackSalvo != null) {
-                            timerCallbackSalvo.run();
-                            timerCallbackSalvo = null;
-                        }
-                        if (treinoAtual != null) atualizarHeaderTreino();
-                    });
-                } else {
-                    academia.put("timerEmAndamento", false);
-                    salvarDados();
-                }
-            }
-        } catch (JSONException e) {}
-    }
-
-    private void verificarPesoReminder() {
-        try {
-            JSONObject academia = configData.getJSONObject("academia");
-            JSONObject peso = academia.getJSONObject("peso");
-            if (peso.has("pesoReminderTimestamp")) {
-                long reminderTime = peso.getLong("pesoReminderTimestamp");
-                if (System.currentTimeMillis() >= reminderTime) {
-                    mostrarAvisoPeso();
-                }
-            }
-        } catch (JSONException e) {}
     }
 
     private void setupUI() {
@@ -371,21 +277,9 @@ public class MainActivity extends Activity {
                     if (descanso > 0) {
                         btnProntoHeader.setVisibility(View.GONE);
                         aguardandoTimer = true;
-                        timerEmAndamento = true;
-                        timerCallbackSalvo = () -> {
-                            salvarProgressoEAtualizar(exercicioAtualIndex);
-                        };
                         iniciarTimer(descanso, () -> {
-                            timerEmAndamento = false;
                             aguardandoTimer = false;
-                            try {
-                                configData.getJSONObject("academia").put("timerEmAndamento", false);
-                                salvarDados();
-                            } catch (JSONException e) {}
-                            if (timerCallbackSalvo != null) {
-                                timerCallbackSalvo.run();
-                                timerCallbackSalvo = null;
-                            }
+                            salvarProgressoEAtualizar(exercicioAtualIndex);
                         });
                     } else {
                         salvarProgressoEAtualizar(exercicioAtualIndex);
@@ -395,27 +289,9 @@ public class MainActivity extends Activity {
                     if (descanso > 0) {
                         btnProntoHeader.setVisibility(View.GONE);
                         aguardandoTimer = true;
-                        timerEmAndamento = true;
-                        timerCallbackSalvo = () -> {
-                            aguardandoTimer = false;
-                            timerEmAndamento = false;
-                            try {
-                                configData.getJSONObject("academia").put("timerEmAndamento", false);
-                                salvarDados();
-                            } catch (JSONException e) {}
-                            atualizarHeaderTreino();
-                        };
                         iniciarTimer(descanso, () -> {
-                            timerEmAndamento = false;
                             aguardandoTimer = false;
-                            try {
-                                configData.getJSONObject("academia").put("timerEmAndamento", false);
-                                salvarDados();
-                            } catch (JSONException e) {}
-                            if (timerCallbackSalvo != null) {
-                                timerCallbackSalvo.run();
-                                timerCallbackSalvo = null;
-                            }
+                            atualizarHeaderTreino();
                         });
                     } else {
                         atualizarHeaderTreino();
@@ -501,7 +377,6 @@ public class MainActivity extends Activity {
             academia.put("treinos", new JSONArray());
             academia.put("treinoConcluido", new JSONObject());
             academia.put("botaoAtivo", false);
-            academia.put("timerEmAndamento", false);
             configData.put("academia", academia);
             salvarDados();
         } catch (JSONException e) {
@@ -641,7 +516,7 @@ public class MainActivity extends Activity {
     private boolean verificarPeso() {
         try {
             JSONObject peso = configData.getJSONObject("academia").getJSONObject("peso");
-            if (peso.isNull("ultimoRegistro")) return true;
+            if (peso.isNull("ultimoRegistro")) return false;
             String ultimoStr = peso.getString("ultimoRegistro");
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
             Date ultimo = sdf.parse(ultimoStr);
@@ -650,7 +525,7 @@ public class MainActivity extends Activity {
             int intervalo = peso.getInt("intervalo");
             return diffDays >= intervalo;
         } catch (Exception e) {
-            return true;
+            return false;
         }
     }
 
@@ -728,25 +603,11 @@ public class MainActivity extends Activity {
     private void mostrarAvisoPeso() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Hora de Pesar!");
-        
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(dpToPx(20), dpToPx(20), dpToPx(20), dpToPx(20));
-
-        TextView msg = new TextView(this);
-        msg.setText("Ja faz " + getDiasDesdePesagem() + " dias desde a ultima pesagem (" + getUltimaPesagemData() + "). Registre seu novo peso.");
-        msg.setTextColor(Color.parseColor("#cccccc"));
-        msg.setTextSize(13);
-        layout.addView(msg);
-
         final EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         input.setHint("Peso atual (kg)");
-        input.setBackgroundColor(Color.parseColor("#0d0d0d"));
-        input.setTextColor(Color.parseColor("#ffffff"));
-        layout.addView(input);
-
-        builder.setView(layout);
+        builder.setView(input);
+        builder.setMessage("Ja faz " + getDiasDesdePesagem() + " dias desde a ultima pesagem (" + getUltimaPesagemData() + "). Registre seu novo peso.");
         builder.setPositiveButton("Registrar", (dialog, which) -> {
             try {
                 double val = Double.parseDouble(input.getText().toString());
@@ -761,7 +622,6 @@ public class MainActivity extends Activity {
                 configData.getJSONObject("academia").getJSONObject("peso").put("atual", val);
                 SimpleDateFormat sdf2 = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
                 configData.getJSONObject("academia").getJSONObject("peso").put("ultimoRegistro", sdf2.format(new Date()));
-                configData.getJSONObject("academia").getJSONObject("peso").remove("pesoReminderTimestamp");
                 salvarDados();
                 renderDados();
                 if (treinoAtual != null) atualizarHeaderTreino();
@@ -769,15 +629,7 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "Peso invalido.", Toast.LENGTH_SHORT).show();
             }
         });
-        builder.setNegativeButton("Lembrar depois", (dialog, which) -> {
-            try {
-                long reminderTime = System.currentTimeMillis() + (24 * 60 * 60 * 1000);
-                configData.getJSONObject("academia").getJSONObject("peso").put("pesoReminderTimestamp", reminderTime);
-                salvarDados();
-                Toast.makeText(this, "Lembrarei novamente amanha.", Toast.LENGTH_SHORT).show();
-            } catch (JSONException e) {}
-        });
-        builder.setNeutralButton("Cancelar", null);
+        builder.setNegativeButton("Cancelar", null);
         builder.show();
     }
 
@@ -789,41 +641,13 @@ public class MainActivity extends Activity {
         }
         timerRestante = 0;
         aguardandoTimer = false;
-        timerEmAndamento = false;
         timerPanel.setVisibility(View.GONE);
-        try {
-            configData.getJSONObject("academia").put("timerEmAndamento", false);
-            salvarDados();
-        } catch (JSONException e) {}
-    }
-
-    private void vibrar() {
-        if (vibrator != null && vibrator.hasVibrator()) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(android.os.VibrationEffect.createOneShot(1000, android.os.VibrationEffect.DEFAULT_AMPLITUDE));
-            } else {
-                vibrator.vibrate(1000);
-            }
-        }
     }
 
     private void iniciarTimer(int segundos, Runnable callback) {
         limparTimer();
         timerRestante = segundos;
         aguardandoTimer = true;
-        timerEmAndamento = true;
-        timerTotalSegundos = segundos;
-        timerSegundosRestantes = segundos;
-        timerInicioTimestamp = System.currentTimeMillis();
-        
-        try {
-            JSONObject academia = configData.getJSONObject("academia");
-            academia.put("timerEmAndamento", true);
-            academia.put("timerInicioTimestamp", timerInicioTimestamp);
-            academia.put("timerTotalSegundos", segundos);
-            salvarDados();
-        } catch (JSONException e) {}
-
         timerPanel.setVisibility(View.VISIBLE);
         timerPanel.removeAllViews();
 
@@ -859,60 +683,7 @@ public class MainActivity extends Activity {
             @Override
             public void run() {
                 timerRestante--;
-                timerSegundosRestantes = timerRestante;
                 if (timerRestante <= 0) {
-                    vibrar();
-                    limparTimer();
-                    if (callback != null) callback.run();
-                } else {
-                    timerLabel.setText(String.format("%02d:%02d", timerRestante/60, timerRestante%60));
-                    timerHandler.postDelayed(this, 1000);
-                }
-            }
-        };
-        timerHandler.postDelayed(timerRunnable, 1000);
-    }
-
-    private void iniciarTimerRestaurado(int segundos, Runnable callback) {
-        timerRestante = segundos;
-        timerPanel.setVisibility(View.VISIBLE);
-        timerPanel.removeAllViews();
-
-        LinearLayout display = new LinearLayout(this);
-        display.setOrientation(LinearLayout.VERTICAL);
-        display.setBackgroundColor(Color.parseColor("#0d0d0d"));
-        display.setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(12));
-        GradientDrawable border = new GradientDrawable();
-        border.setStroke(1, Color.parseColor("#2a4a2a"));
-        border.setColor(Color.parseColor("#0d0d0d"));
-        display.setBackground(border);
-
-        TextView label = new TextView(this);
-        label.setText("DESCANSANDO");
-        label.setTextColor(Color.parseColor("#ffaa00"));
-        label.setTextSize(12);
-        label.setTypeface(null, android.graphics.Typeface.BOLD);
-        label.setGravity(android.view.Gravity.CENTER);
-        display.addView(label);
-
-        timerLabel = new TextView(this);
-        timerLabel.setText(String.format("%02d:%02d", segundos/60, segundos%60));
-        timerLabel.setTextColor(Color.parseColor("#8bc34a"));
-        timerLabel.setTextSize(28);
-        timerLabel.setTypeface(null, android.graphics.Typeface.BOLD);
-        timerLabel.setGravity(android.view.Gravity.CENTER);
-        display.addView(timerLabel);
-
-        timerPanel.addView(display);
-
-        timerHandler = new Handler();
-        timerRunnable = new Runnable() {
-            @Override
-            public void run() {
-                timerRestante--;
-                timerSegundosRestantes = timerRestante;
-                if (timerRestante <= 0) {
-                    vibrar();
                     limparTimer();
                     if (callback != null) callback.run();
                 } else {
@@ -2851,7 +2622,6 @@ public class MainActivity extends Activity {
         carregarDados();
         atualizarTreinoHoje();
         renderDados();
-        verificarTimerSalvo();
     }
 }
 EOF
