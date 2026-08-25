@@ -265,14 +265,16 @@ public class MainActivity extends Activity {
             if (aguardandoTimer) return;
             try {
                 JSONObject exAtual = treinoAtual.getJSONArray("exercicios").getJSONObject(exercicioAtualIndex);
-                int series = exAtual.getInt("sets");
-                int feitas = exAtual.has("_seriesFeitas") ? exAtual.getInt("_seriesFeitas") : 0;
-                if (feitas >= series) return;
-                exAtual.put("_seriesFeitas", feitas + 1);
-
-                int descanso = exAtual.has("descanso") && !exAtual.isNull("descanso") ? exAtual.getInt("descanso") : 0;
+                JSONArray series = exAtual.getJSONArray("series");
+                int seriesFeitas = exAtual.has("_seriesFeitas") ? exAtual.getInt("_seriesFeitas") : 0;
+                if (seriesFeitas >= series.length()) return;
                 
-                if (exAtual.getInt("_seriesFeitas") >= series) {
+                JSONObject serieAtual = series.getJSONObject(seriesFeitas);
+                int descanso = serieAtual.has("descanso") && !serieAtual.isNull("descanso") ? serieAtual.getInt("descanso") : 0;
+                
+                exAtual.put("_seriesFeitas", seriesFeitas + 1);
+                
+                if (seriesFeitas + 1 >= series.length()) {
                     exAtual.put("_done", true);
                     if (descanso > 0) {
                         btnProntoHeader.setVisibility(View.GONE);
@@ -355,6 +357,7 @@ public class MainActivity extends Activity {
                 String jsonStr = sb.toString();
                 if (!jsonStr.isEmpty()) {
                     configData = new JSONObject(jsonStr);
+                    migrarDadosAntigos();
                     return;
                 }
             }
@@ -379,6 +382,48 @@ public class MainActivity extends Activity {
             academia.put("botaoAtivo", false);
             configData.put("academia", academia);
             salvarDados();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void migrarDadosAntigos() {
+        try {
+            JSONArray treinos = configData.getJSONObject("academia").getJSONArray("treinos");
+            boolean precisaMigrar = false;
+            for (int i = 0; i < treinos.length(); i++) {
+                JSONObject treino = treinos.getJSONObject(i);
+                if (treino.has("exercicios")) {
+                    JSONArray exercicios = treino.getJSONArray("exercicios");
+                    for (int j = 0; j < exercicios.length(); j++) {
+                        JSONObject ex = exercicios.getJSONObject(j);
+                        if (ex.has("sets") && !ex.has("series")) {
+                            precisaMigrar = true;
+                            int sets = ex.getInt("sets");
+                            JSONArray series = new JSONArray();
+                            for (int k = 0; k < sets; k++) {
+                                JSONObject serie = new JSONObject();
+                                serie.put("reps", ex.getInt("reps"));
+                                serie.put("load", ex.getDouble("load"));
+                                if (ex.has("descanso") && !ex.isNull("descanso")) {
+                                    serie.put("descanso", ex.getInt("descanso"));
+                                }
+                                if (ex.has("warmup") && ex.getBoolean("warmup") && k == 0) {
+                                    serie.put("warmup", true);
+                                } else {
+                                    serie.put("warmup", false);
+                                }
+                                series.put(serie);
+                            }
+                            ex.put("series", series);
+                            ex.remove("sets");
+                        }
+                    }
+                }
+            }
+            if (precisaMigrar) {
+                salvarDados();
+            }
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -467,26 +512,34 @@ public class MainActivity extends Activity {
             }
 
             JSONObject ex = exercicios.getJSONObject(exercicioAtualIndex);
-            int totalSeries = ex.getInt("sets");
+            JSONArray series = ex.getJSONArray("series");
             int seriesFeitas = ex.has("_seriesFeitas") ? ex.getInt("_seriesFeitas") : 0;
-            boolean isDone = seriesFeitas >= totalSeries;
+            boolean isDone = seriesFeitas >= series.length();
 
             treinoNomeHeader.setText(treinoAtual.getString("nome"));
             exercicioNomeHeader.setText(ex.getString("exercise"));
 
-            if (ex.has("warmup") && ex.getBoolean("warmup")) {
-                repeticoesHeader.setText("Aquecimento - " + ex.getInt("reps") + " repeticoes");
-            } else {
-                repeticoesHeader.setText(ex.getInt("reps") + " repeticoes");
+            if (series.length() > 0 && seriesFeitas < series.length()) {
+                JSONObject serieAtual = series.getJSONObject(seriesFeitas);
+                boolean isWarmup = serieAtual.has("warmup") && serieAtual.getBoolean("warmup");
+                if (isWarmup) {
+                    repeticoesHeader.setText("Aquecimento - " + serieAtual.getInt("reps") + " repeticoes");
+                } else {
+                    repeticoesHeader.setText(serieAtual.getInt("reps") + " repeticoes");
+                }
+                cargaHeader.setText(serieAtual.getDouble("load") + " kg");
+            } else if (series.length() > 0) {
+                JSONObject ultimaSerie = series.getJSONObject(series.length() - 1);
+                repeticoesHeader.setText(ultimaSerie.getInt("reps") + " repeticoes");
+                cargaHeader.setText(ultimaSerie.getDouble("load") + " kg");
             }
-            cargaHeader.setText(ex.getDouble("load") + " kg");
 
             if (isDone) {
                 seriesStatusHeader.setText("Concluido");
                 seriesStatusHeader.setTextColor(Color.parseColor("#8bc34a"));
                 btnProntoHeader.setVisibility(View.GONE);
             } else {
-                seriesStatusHeader.setText(seriesFeitas + "/" + totalSeries + " series");
+                seriesStatusHeader.setText(seriesFeitas + "/" + series.length() + " series");
                 seriesStatusHeader.setTextColor(Color.parseColor("#ffaa00"));
                 if (!aguardandoTimer) {
                     btnProntoHeader.setVisibility(View.VISIBLE);
@@ -500,9 +553,9 @@ public class MainActivity extends Activity {
             int done = 0;
             for (int i = 0; i < total; i++) {
                 JSONObject e = exercicios.getJSONObject(i);
-                int s = e.getInt("sets");
+                JSONArray s = e.getJSONArray("series");
                 int f = e.has("_seriesFeitas") ? e.getInt("_seriesFeitas") : 0;
-                if (f >= s) done++;
+                if (f >= s.length()) done++;
             }
             int pct = total > 0 ? (done * 100) / total : 0;
             progressBar.setProgress(pct);
@@ -715,8 +768,7 @@ public class MainActivity extends Activity {
                                 if (exOriginal.has("loadHistory")) {
                                     e.put("loadHistory", exOriginal.getJSONArray("loadHistory"));
                                 }
-                                e.put("load", exOriginal.getDouble("load"));
-                                e.put("reps", exOriginal.getInt("reps"));
+                                e.put("series", exOriginal.getJSONArray("series"));
                                 break;
                             }
                         }
@@ -737,9 +789,9 @@ public class MainActivity extends Activity {
             int proximoIdx = -1;
             for (int i = idxAtual + 1; i < exercicios.length(); i++) {
                 JSONObject ex = exercicios.getJSONObject(i);
-                int sets = ex.getInt("sets");
+                JSONArray series = ex.getJSONArray("series");
                 int feitas = ex.has("_seriesFeitas") ? ex.getInt("_seriesFeitas") : 0;
-                if (feitas < sets) {
+                if (feitas < series.length()) {
                     proximoIdx = i;
                     break;
                 }
@@ -817,11 +869,26 @@ public class MainActivity extends Activity {
                         if (!e.has("_seriesFeitas")) e.put("_seriesFeitas", 0);
                         if (!e.has("_done")) e.put("_done", false);
                         if (!e.has("loadHistory")) e.put("loadHistory", new JSONArray());
+                        if (!e.has("series")) {
+                            JSONArray series = new JSONArray();
+                            JSONObject serie = new JSONObject();
+                            serie.put("reps", e.getInt("reps"));
+                            serie.put("load", e.getDouble("load"));
+                            if (e.has("descanso") && !e.isNull("descanso")) {
+                                serie.put("descanso", e.getInt("descanso"));
+                            }
+                            if (e.has("warmup") && e.getBoolean("warmup")) {
+                                serie.put("warmup", true);
+                            }
+                            series.put(serie);
+                            e.put("series", series);
+                        }
                     }
                     boolean algumNaoConcluido = false;
                     for (int i = 0; i < exs.length(); i++) {
                         JSONObject e = exs.getJSONObject(i);
-                        if (e.getInt("_seriesFeitas") < e.getInt("sets")) {
+                        JSONArray series = e.getJSONArray("series");
+                        if (e.getInt("_seriesFeitas") < series.length()) {
                             exercicioAtualIndex = i;
                             algumNaoConcluido = true;
                             break;
@@ -881,11 +948,29 @@ public class MainActivity extends Activity {
                     e.put("_seriesFeitas", 0);
                     e.put("_done", false);
                     if (!e.has("loadHistory")) e.put("loadHistory", new JSONArray());
+                    if (!e.has("series")) {
+                        JSONArray series = new JSONArray();
+                        JSONObject serie = new JSONObject();
+                        serie.put("reps", e.getInt("reps"));
+                        serie.put("load", e.getDouble("load"));
+                        if (e.has("descanso") && !e.isNull("descanso")) {
+                            serie.put("descanso", e.getInt("descanso"));
+                        }
+                        if (e.has("warmup") && e.getBoolean("warmup")) {
+                            serie.put("warmup", true);
+                        }
+                        series.put(serie);
+                        e.put("series", series);
+                    }
                     if (e.has("loadHistory") && e.getJSONArray("loadHistory").length() > 0) {
                         JSONArray hist = e.getJSONArray("loadHistory");
                         JSONObject ultimo = hist.getJSONObject(hist.length() - 1);
-                        e.put("load", ultimo.getDouble("load"));
-                        if (ultimo.has("reps")) e.put("reps", ultimo.getInt("reps"));
+                        JSONArray series = e.getJSONArray("series");
+                        for (int j = 0; j < series.length(); j++) {
+                            JSONObject s = series.getJSONObject(j);
+                            s.put("load", ultimo.getDouble("load"));
+                            if (ultimo.has("reps")) s.put("reps", ultimo.getInt("reps"));
+                        }
                     }
                 }
             }
@@ -982,11 +1067,26 @@ public class MainActivity extends Activity {
                     for (int i = 0; i < exs.length(); i++) {
                         JSONObject e = exs.getJSONObject(i);
                         if (!e.has("loadHistory")) e.put("loadHistory", new JSONArray());
+                        if (!e.has("series")) {
+                            JSONArray series = new JSONArray();
+                            JSONObject serie = new JSONObject();
+                            serie.put("reps", e.getInt("reps"));
+                            serie.put("load", e.getDouble("load"));
+                            if (e.has("descanso") && !e.isNull("descanso")) {
+                                serie.put("descanso", e.getInt("descanso"));
+                            }
+                            if (e.has("warmup") && e.getBoolean("warmup")) {
+                                serie.put("warmup", true);
+                            }
+                            series.put(serie);
+                            e.put("series", series);
+                        }
                     }
                     boolean todosConcluidos = true;
                     for (int i = 0; i < exs.length(); i++) {
                         JSONObject e = exs.getJSONObject(i);
-                        if (e.getInt("_seriesFeitas") < e.getInt("sets")) {
+                        JSONArray series = e.getJSONArray("series");
+                        if (e.getInt("_seriesFeitas") < series.length()) {
                             todosConcluidos = false;
                             break;
                         }
@@ -1012,7 +1112,8 @@ public class MainActivity extends Activity {
                         exercicioAtualIndex = 0;
                         for (int i = 0; i < exs.length(); i++) {
                             JSONObject e = exs.getJSONObject(i);
-                            if (e.getInt("_seriesFeitas") < e.getInt("sets")) {
+                            JSONArray series = e.getJSONArray("series");
+                            if (e.getInt("_seriesFeitas") < series.length()) {
                                 exercicioAtualIndex = i;
                                 break;
                             }
@@ -1147,10 +1248,8 @@ public class MainActivity extends Activity {
                     JSONArray exs = t.getJSONArray("exercicios");
                     for (int j = 0; j < exs.length(); j++) {
                         JSONObject e = exs.getJSONObject(j);
-                        if (!(e.has("warmup") && e.getBoolean("warmup"))) {
-                            if (!e.has("loadHistory")) e.put("loadHistory", new JSONArray());
-                            todosExercicios.put(e);
-                        }
+                        if (!e.has("loadHistory")) e.put("loadHistory", new JSONArray());
+                        todosExercicios.put(e);
                     }
                 }
             }
@@ -1685,12 +1784,14 @@ public class MainActivity extends Activity {
                 topRow.addView(actions);
                 exItem.addView(topRow);
 
-                if (ex.has("sets") && ex.getInt("sets") > 0) {
+                if (ex.has("series") && ex.getJSONArray("series").length() > 0) {
                     LinearLayout seriesContainer = new LinearLayout(this);
                     seriesContainer.setOrientation(LinearLayout.VERTICAL);
                     seriesContainer.setPadding(0, dpToPx(4), 0, 0);
                     
-                    for (int s = 0; s < ex.getInt("sets"); s++) {
+                    JSONArray series = ex.getJSONArray("series");
+                    for (int s = 0; s < series.length(); s++) {
+                        JSONObject serie = series.getJSONObject(s);
                         LinearLayout serieRow = new LinearLayout(this);
                         serieRow.setOrientation(LinearLayout.HORIZONTAL);
                         serieRow.setBackgroundColor(Color.parseColor("#0d0d0d"));
@@ -1700,11 +1801,12 @@ public class MainActivity extends Activity {
                         borderSerie.setColor(Color.parseColor("#0d0d0d"));
                         serieRow.setBackground(borderSerie);
                         
-                        String warmupText = (ex.has("warmup") && ex.getBoolean("warmup")) ? " (Aquecimento)" : "";
-                        String descansoText = (ex.has("descanso") && !ex.isNull("descanso") && ex.getInt("descanso") > 0) ? " | Descanso: " + ex.getInt("descanso") + "s" : "";
+                        boolean isWarmup = serie.has("warmup") && serie.getBoolean("warmup");
+                        String warmupText = isWarmup ? " (Aquecimento)" : "";
+                        String descansoText = (serie.has("descanso") && !serie.isNull("descanso") && serie.getInt("descanso") > 0) ? " | Descanso: " + serie.getInt("descanso") + "s" : "";
                         
                         TextView serieInfo = new TextView(this);
-                        serieInfo.setText((s + 1) + "x " + ex.getInt("reps") + " reps  " + ex.getDouble("load") + "kg" + warmupText + descansoText);
+                        serieInfo.setText((s + 1) + "x " + serie.getInt("reps") + " reps  " + serie.getDouble("load") + "kg" + warmupText + descansoText);
                         serieInfo.setTextColor(Color.parseColor("#aaaaaa"));
                         serieInfo.setTextSize(11);
                         serieInfo.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
@@ -1725,9 +1827,9 @@ public class MainActivity extends Activity {
                         delSerieBtn.setOnClickListener(v -> {
                             mostrarConfirmacao("Excluir Serie", "Tem certeza que deseja excluir esta serie?", () -> {
                                 try {
-                                    int setsAtuais = ex.getInt("sets");
-                                    if (setsAtuais > 1) {
-                                        ex.put("sets", setsAtuais - 1);
+                                    JSONArray seriesArray = ex.getJSONArray("series");
+                                    if (seriesArray.length() > 1) {
+                                        seriesArray.remove(serieIdx);
                                         salvarDados();
                                         renderDados();
                                     } else {
@@ -1762,9 +1864,11 @@ public class MainActivity extends Activity {
             JSONArray treinos = configData.getJSONObject("academia").getJSONArray("treinos");
             JSONObject treino = treinos.getJSONObject(treinoIdx);
             JSONObject ex = treino.getJSONArray("exercicios").getJSONObject(exIdx);
+            JSONArray series = ex.getJSONArray("series");
+            JSONObject serie = series.getJSONObject(serieIdx);
 
             AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle("Editar Serie - " + ex.getString("exercise"));
+            builder.setTitle("Editar Serie " + (serieIdx + 1) + " - " + ex.getString("exercise"));
 
             LinearLayout layout = new LinearLayout(this);
             layout.setOrientation(LinearLayout.VERTICAL);
@@ -1778,7 +1882,7 @@ public class MainActivity extends Activity {
 
             final EditText repsInput = new EditText(this);
             repsInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-            repsInput.setText(String.valueOf(ex.getInt("reps")));
+            repsInput.setText(String.valueOf(serie.getInt("reps")));
             repsInput.setBackgroundColor(Color.parseColor("#0d0d0d"));
             repsInput.setTextColor(Color.parseColor("#ffffff"));
             layout.addView(repsInput);
@@ -1791,7 +1895,7 @@ public class MainActivity extends Activity {
 
             final EditText loadInput = new EditText(this);
             loadInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
-            loadInput.setText(String.valueOf(ex.getDouble("load")));
+            loadInput.setText(String.valueOf(serie.getDouble("load")));
             loadInput.setBackgroundColor(Color.parseColor("#0d0d0d"));
             loadInput.setTextColor(Color.parseColor("#ffffff"));
             layout.addView(loadInput);
@@ -1804,14 +1908,14 @@ public class MainActivity extends Activity {
 
             final EditText descInput = new EditText(this);
             descInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-            descInput.setText(ex.has("descanso") && !ex.isNull("descanso") ? String.valueOf(ex.getInt("descanso")) : "60");
+            descInput.setText(serie.has("descanso") && !serie.isNull("descanso") ? String.valueOf(serie.getInt("descanso")) : "60");
             descInput.setBackgroundColor(Color.parseColor("#0d0d0d"));
             descInput.setTextColor(Color.parseColor("#ffffff"));
             layout.addView(descInput);
 
             final CheckBox warmupCheck = new CheckBox(this);
             warmupCheck.setText("Serie de aquecimento");
-            warmupCheck.setChecked(ex.has("warmup") && ex.getBoolean("warmup"));
+            warmupCheck.setChecked(serie.has("warmup") && serie.getBoolean("warmup"));
             warmupCheck.setTextColor(Color.parseColor("#aaaaaa"));
             layout.addView(warmupCheck);
 
@@ -1823,16 +1927,16 @@ public class MainActivity extends Activity {
                     if (reps < 1 || load <= 0) {
                         throw new NumberFormatException();
                     }
-                    ex.put("reps", reps);
-                    ex.put("load", load);
-                    ex.put("warmup", warmupCheck.isChecked());
+                    serie.put("reps", reps);
+                    serie.put("load", load);
+                    serie.put("warmup", warmupCheck.isChecked());
 
                     int descanso = 0;
                     if (!descInput.getText().toString().trim().isEmpty()) {
                         descanso = Integer.parseInt(descInput.getText().toString().trim());
                     }
-                    if (descanso > 0) ex.put("descanso", descanso);
-                    else ex.remove("descanso");
+                    if (descanso > 0) serie.put("descanso", descanso);
+                    else serie.remove("descanso");
 
                     salvarDados();
                     renderDados();
@@ -2351,13 +2455,10 @@ public class MainActivity extends Activity {
                 }
                 JSONObject exercicio = new JSONObject();
                 exercicio.put("exercise", exercise);
-                exercicio.put("sets", 0);
-                exercicio.put("reps", 0);
-                exercicio.put("load", 0);
                 exercicio.put("_seriesFeitas", 0);
                 exercicio.put("_done", false);
                 exercicio.put("loadHistory", new JSONArray());
-                exercicio.put("warmup", false);
+                exercicio.put("series", new JSONArray());
 
                 JSONArray treinos = configData.getJSONObject("academia").getJSONArray("treinos");
                 JSONObject treino = treinos.getJSONObject(treinoIdx);
@@ -2439,17 +2540,19 @@ public class MainActivity extends Activity {
                         throw new NumberFormatException();
                     }
                     
-                    int setsAtuais = ex.has("sets") ? ex.getInt("sets") : 0;
-                    ex.put("sets", setsAtuais + 1);
-                    ex.put("reps", reps);
-                    ex.put("load", load);
-                    ex.put("warmup", warmupCheck.isChecked());
+                    JSONObject novaSerie = new JSONObject();
+                    novaSerie.put("reps", reps);
+                    novaSerie.put("load", load);
+                    novaSerie.put("warmup", warmupCheck.isChecked());
 
                     int descanso = 0;
                     if (!descInput.getText().toString().trim().isEmpty()) {
                         descanso = Integer.parseInt(descInput.getText().toString().trim());
                     }
-                    if (descanso > 0) ex.put("descanso", descanso);
+                    if (descanso > 0) novaSerie.put("descanso", descanso);
+
+                    JSONArray series = ex.getJSONArray("series");
+                    series.put(novaSerie);
 
                     salvarDados();
                     renderDados();
