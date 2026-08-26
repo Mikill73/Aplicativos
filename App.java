@@ -59,6 +59,9 @@ public class MainActivity extends Activity {
     private Context context;
     private AlertDialog historicoPesoDialog;
     private AlertDialog historicoCargaDialog;
+    private int dragFromIndex = -1;
+    private int dragTargetIndex = -1;
+    private String dragType = "";
 
     private int getDiaDaSemanaNumero() {
         Calendar cal = Calendar.getInstance();
@@ -1757,38 +1760,41 @@ public class MainActivity extends Activity {
                 addSerieBtn.setOnClickListener(v -> mostrarAdicionarSerie(treinoIdx, exIdx));
                 actions.addView(addSerieBtn);
 
+                final JSONArray finalExercicios = exercicios;
                 Button moveUpEx = new Button(this);
-                moveUpEx.setText("▲");
+                moveUpEx.setText("⇧");
                 moveUpEx.setTextColor(Color.parseColor("#88aaff"));
                 moveUpEx.setBackground(null);
                 moveUpEx.setOnClickListener(v -> {
                     if (exIdx > 0) {
                         try {
-                            JSONArray exs = exercicios;
-                            JSONObject temp = exs.getJSONObject(exIdx);
-                            exs.remove(exIdx);
-                            exs.put(exIdx - 1, temp);
+                            JSONObject temp = finalExercicios.getJSONObject(exIdx);
+                            finalExercicios.remove(exIdx);
+                            finalExercicios.put(exIdx - 1, temp);
                             salvarDados();
                             renderDados();
-                        } catch (JSONException e) {}
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
                     }
                 });
                 actions.addView(moveUpEx);
 
                 Button moveDownEx = new Button(this);
-                moveDownEx.setText("▼");
+                moveDownEx.setText("⇩");
                 moveDownEx.setTextColor(Color.parseColor("#88aaff"));
                 moveDownEx.setBackground(null);
                 moveDownEx.setOnClickListener(v -> {
-                    if (exIdx < exercicios.length() - 1) {
+                    if (exIdx < finalExercicios.length() - 1) {
                         try {
-                            JSONArray exs = exercicios;
-                            JSONObject temp = exs.getJSONObject(exIdx);
-                            exs.remove(exIdx);
-                            exs.put(exIdx + 1, temp);
+                            JSONObject temp = finalExercicios.getJSONObject(exIdx);
+                            finalExercicios.remove(exIdx);
+                            finalExercicios.put(exIdx + 1, temp);
                             salvarDados();
                             renderDados();
-                        } catch (JSONException e) {}
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
                     }
                 });
                 actions.addView(moveDownEx);
@@ -1849,39 +1855,42 @@ public class MainActivity extends Activity {
                         serieInfo.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
                         serieRow.addView(serieInfo);
                         
+                        final JSONArray finalSeries = series;
                         Button moveUpSerie = new Button(this);
-                        moveUpSerie.setText("▲");
+                        moveUpSerie.setText("⇧");
                         moveUpSerie.setTextColor(Color.parseColor("#88aaff"));
                         moveUpSerie.setBackground(null);
                         final int serieIdx = s;
                         moveUpSerie.setOnClickListener(v -> {
                             if (serieIdx > 0) {
                                 try {
-                                    JSONArray seriesArray = ex.getJSONArray("series");
-                                    JSONObject temp = seriesArray.getJSONObject(serieIdx);
-                                    seriesArray.remove(serieIdx);
-                                    seriesArray.put(serieIdx - 1, temp);
+                                    JSONObject temp = finalSeries.getJSONObject(serieIdx);
+                                    finalSeries.remove(serieIdx);
+                                    finalSeries.put(serieIdx - 1, temp);
                                     salvarDados();
                                     renderDados();
-                                } catch (JSONException e) {}
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
                             }
                         });
                         serieRow.addView(moveUpSerie);
                         
                         Button moveDownSerie = new Button(this);
-                        moveDownSerie.setText("▼");
+                        moveDownSerie.setText("⇩");
                         moveDownSerie.setTextColor(Color.parseColor("#88aaff"));
                         moveDownSerie.setBackground(null);
                         moveDownSerie.setOnClickListener(v -> {
-                            if (serieIdx < series.length() - 1) {
+                            if (serieIdx < finalSeries.length() - 1) {
                                 try {
-                                    JSONArray seriesArray = ex.getJSONArray("series");
-                                    JSONObject temp = seriesArray.getJSONObject(serieIdx);
-                                    seriesArray.remove(serieIdx);
-                                    seriesArray.put(serieIdx + 1, temp);
+                                    JSONObject temp = finalSeries.getJSONObject(serieIdx);
+                                    finalSeries.remove(serieIdx);
+                                    finalSeries.put(serieIdx + 1, temp);
                                     salvarDados();
                                     renderDados();
-                                } catch (JSONException e) {}
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
                             }
                         });
                         serieRow.addView(moveDownSerie);
