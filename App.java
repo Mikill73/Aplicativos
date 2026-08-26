@@ -523,14 +523,14 @@ public class MainActivity extends Activity {
                 JSONObject serieAtual = series.getJSONObject(seriesFeitas);
                 boolean isWarmup = serieAtual.has("warmup") && serieAtual.getBoolean("warmup");
                 if (isWarmup) {
-                    repeticoesHeader.setText("Aquecimento - " + serieAtual.getInt("reps") + " repeticoes");
+                    repeticoesHeader.setText("Aquecimento - " + (serieAtual.has("reps") ? serieAtual.getInt("reps") + " repeticoes" : "ate a falha"));
                 } else {
-                    repeticoesHeader.setText(serieAtual.getInt("reps") + " repeticoes");
+                    repeticoesHeader.setText(serieAtual.has("reps") ? serieAtual.getInt("reps") + " repeticoes" : "ate a falha");
                 }
                 cargaHeader.setText(serieAtual.getDouble("load") + " kg");
             } else if (series.length() > 0) {
                 JSONObject ultimaSerie = series.getJSONObject(series.length() - 1);
-                repeticoesHeader.setText(ultimaSerie.getInt("reps") + " repeticoes");
+                repeticoesHeader.setText(ultimaSerie.has("reps") ? ultimaSerie.getInt("reps") + " repeticoes" : "ate a falha");
                 cargaHeader.setText(ultimaSerie.getDouble("load") + " kg");
             }
 
@@ -1757,6 +1757,42 @@ public class MainActivity extends Activity {
                 addSerieBtn.setOnClickListener(v -> mostrarAdicionarSerie(treinoIdx, exIdx));
                 actions.addView(addSerieBtn);
 
+                Button moveUpEx = new Button(this);
+                moveUpEx.setText("▲");
+                moveUpEx.setTextColor(Color.parseColor("#88aaff"));
+                moveUpEx.setBackground(null);
+                moveUpEx.setOnClickListener(v -> {
+                    if (exIdx > 0) {
+                        try {
+                            JSONArray exs = exercicios;
+                            JSONObject temp = exs.getJSONObject(exIdx);
+                            exs.remove(exIdx);
+                            exs.put(exIdx - 1, temp);
+                            salvarDados();
+                            renderDados();
+                        } catch (JSONException e) {}
+                    }
+                });
+                actions.addView(moveUpEx);
+
+                Button moveDownEx = new Button(this);
+                moveDownEx.setText("▼");
+                moveDownEx.setTextColor(Color.parseColor("#88aaff"));
+                moveDownEx.setBackground(null);
+                moveDownEx.setOnClickListener(v -> {
+                    if (exIdx < exercicios.length() - 1) {
+                        try {
+                            JSONArray exs = exercicios;
+                            JSONObject temp = exs.getJSONObject(exIdx);
+                            exs.remove(exIdx);
+                            exs.put(exIdx + 1, temp);
+                            salvarDados();
+                            renderDados();
+                        } catch (JSONException e) {}
+                    }
+                });
+                actions.addView(moveDownEx);
+
                 Button editExBtn = new Button(this);
                 editExBtn.setText("E");
                 editExBtn.setTextColor(Color.parseColor("#88aaff"));
@@ -1804,19 +1840,56 @@ public class MainActivity extends Activity {
                         boolean isWarmup = serie.has("warmup") && serie.getBoolean("warmup");
                         String warmupText = isWarmup ? " (Aquecimento)" : "";
                         String descansoText = (serie.has("descanso") && !serie.isNull("descanso") && serie.getInt("descanso") > 0) ? " | Descanso: " + serie.getInt("descanso") + "s" : "";
+                        String repsText = serie.has("reps") ? serie.getInt("reps") + " reps" : "ate a falha";
                         
                         TextView serieInfo = new TextView(this);
-                        serieInfo.setText((s + 1) + "x " + serie.getInt("reps") + " reps  " + serie.getDouble("load") + "kg" + warmupText + descansoText);
+                        serieInfo.setText(repsText + "  " + serie.getDouble("load") + "kg" + warmupText + descansoText);
                         serieInfo.setTextColor(Color.parseColor("#aaaaaa"));
                         serieInfo.setTextSize(11);
                         serieInfo.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
                         serieRow.addView(serieInfo);
                         
+                        Button moveUpSerie = new Button(this);
+                        moveUpSerie.setText("▲");
+                        moveUpSerie.setTextColor(Color.parseColor("#88aaff"));
+                        moveUpSerie.setBackground(null);
+                        final int serieIdx = s;
+                        moveUpSerie.setOnClickListener(v -> {
+                            if (serieIdx > 0) {
+                                try {
+                                    JSONArray seriesArray = ex.getJSONArray("series");
+                                    JSONObject temp = seriesArray.getJSONObject(serieIdx);
+                                    seriesArray.remove(serieIdx);
+                                    seriesArray.put(serieIdx - 1, temp);
+                                    salvarDados();
+                                    renderDados();
+                                } catch (JSONException e) {}
+                            }
+                        });
+                        serieRow.addView(moveUpSerie);
+                        
+                        Button moveDownSerie = new Button(this);
+                        moveDownSerie.setText("▼");
+                        moveDownSerie.setTextColor(Color.parseColor("#88aaff"));
+                        moveDownSerie.setBackground(null);
+                        moveDownSerie.setOnClickListener(v -> {
+                            if (serieIdx < series.length() - 1) {
+                                try {
+                                    JSONArray seriesArray = ex.getJSONArray("series");
+                                    JSONObject temp = seriesArray.getJSONObject(serieIdx);
+                                    seriesArray.remove(serieIdx);
+                                    seriesArray.put(serieIdx + 1, temp);
+                                    salvarDados();
+                                    renderDados();
+                                } catch (JSONException e) {}
+                            }
+                        });
+                        serieRow.addView(moveDownSerie);
+                        
                         Button editSerieBtn = new Button(this);
                         editSerieBtn.setText("E");
                         editSerieBtn.setTextColor(Color.parseColor("#88aaff"));
                         editSerieBtn.setBackground(null);
-                        final int serieIdx = s;
                         editSerieBtn.setOnClickListener(v -> mostrarEditarSerie(treinoIdx, exIdx, serieIdx));
                         serieRow.addView(editSerieBtn);
                         
@@ -1875,14 +1948,14 @@ public class MainActivity extends Activity {
             layout.setPadding(dpToPx(20), dpToPx(20), dpToPx(20), dpToPx(20));
 
             TextView repsLabel = new TextView(this);
-            repsLabel.setText("Repeticoes *");
+            repsLabel.setText("Repeticoes (opcional - vazio = ate a falha)");
             repsLabel.setTextColor(Color.parseColor("#888888"));
             repsLabel.setTextSize(12);
             layout.addView(repsLabel);
 
             final EditText repsInput = new EditText(this);
             repsInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-            repsInput.setText(String.valueOf(serie.getInt("reps")));
+            repsInput.setText(serie.has("reps") ? String.valueOf(serie.getInt("reps")) : "");
             repsInput.setBackgroundColor(Color.parseColor("#0d0d0d"));
             repsInput.setTextColor(Color.parseColor("#ffffff"));
             layout.addView(repsInput);
@@ -1922,13 +1995,24 @@ public class MainActivity extends Activity {
             builder.setView(layout);
             builder.setPositiveButton("Salvar", (dialog, which) -> {
                 try {
-                    int reps = Integer.parseInt(repsInput.getText().toString().trim());
                     double load = Double.parseDouble(loadInput.getText().toString().trim());
-                    if (reps < 1 || load < 0) {
-                        Toast.makeText(context, "Repeticoes deve ser maior que 0 e carga deve ser >= 0.", Toast.LENGTH_SHORT).show();
+                    if (load < 0) {
+                        Toast.makeText(context, "Carga deve ser >= 0.", Toast.LENGTH_SHORT).show();
                         return;
                     }
-                    serie.put("reps", reps);
+                    
+                    String repsStr = repsInput.getText().toString().trim();
+                    if (!repsStr.isEmpty()) {
+                        int reps = Integer.parseInt(repsStr);
+                        if (reps < 1) {
+                            Toast.makeText(context, "Repeticoes deve ser maior que 0.", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        serie.put("reps", reps);
+                    } else {
+                        if (serie.has("reps")) serie.remove("reps");
+                    }
+                    
                     serie.put("load", load);
                     serie.put("warmup", warmupCheck.isChecked());
 
@@ -2489,14 +2573,14 @@ public class MainActivity extends Activity {
             layout.setPadding(dpToPx(20), dpToPx(20), dpToPx(20), dpToPx(20));
 
             TextView repsLabel = new TextView(this);
-            repsLabel.setText("Repeticoes *");
+            repsLabel.setText("Repeticoes (opcional - vazio = ate a falha)");
             repsLabel.setTextColor(Color.parseColor("#888888"));
             repsLabel.setTextSize(12);
             layout.addView(repsLabel);
 
             final EditText repsInput = new EditText(this);
             repsInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-            repsInput.setText("10");
+            repsInput.setHint("Deixe vazio para ate a falha");
             repsInput.setBackgroundColor(Color.parseColor("#0d0d0d"));
             repsInput.setTextColor(Color.parseColor("#ffffff"));
             layout.addView(repsInput);
@@ -2535,15 +2619,23 @@ public class MainActivity extends Activity {
             builder.setView(layout);
             builder.setPositiveButton("Adicionar Serie", (dialog, which) -> {
                 try {
-                    int reps = Integer.parseInt(repsInput.getText().toString().trim());
                     double load = Double.parseDouble(loadInput.getText().toString().trim());
-                    if (reps < 1 || load < 0) {
-                        Toast.makeText(context, "Repeticoes deve ser maior que 0 e carga deve ser >= 0.", Toast.LENGTH_SHORT).show();
+                    if (load < 0) {
+                        Toast.makeText(context, "Carga deve ser >= 0.", Toast.LENGTH_SHORT).show();
                         return;
                     }
                     
                     JSONObject novaSerie = new JSONObject();
-                    novaSerie.put("reps", reps);
+                    String repsStr = repsInput.getText().toString().trim();
+                    if (!repsStr.isEmpty()) {
+                        int reps = Integer.parseInt(repsStr);
+                        if (reps < 1) {
+                            Toast.makeText(context, "Repeticoes deve ser maior que 0.", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        novaSerie.put("reps", reps);
+                    }
+                    
                     novaSerie.put("load", load);
                     novaSerie.put("warmup", warmupCheck.isChecked());
 
