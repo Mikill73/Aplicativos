@@ -527,11 +527,21 @@ public class MainActivity extends Activity {
                 } else {
                     repeticoesHeader.setText(serieAtual.getInt("reps") + " repeticoes");
                 }
-                cargaHeader.setText(serieAtual.getDouble("load") + " kg");
+                double load = serieAtual.getDouble("load");
+                if (load == 0) {
+                    cargaHeader.setText("Sem carga");
+                } else {
+                    cargaHeader.setText(load + " kg");
+                }
             } else if (series.length() > 0) {
                 JSONObject ultimaSerie = series.getJSONObject(series.length() - 1);
                 repeticoesHeader.setText(ultimaSerie.getInt("reps") + " repeticoes");
-                cargaHeader.setText(ultimaSerie.getDouble("load") + " kg");
+                double load = ultimaSerie.getDouble("load");
+                if (load == 0) {
+                    cargaHeader.setText("Sem carga");
+                } else {
+                    cargaHeader.setText(load + " kg");
+                }
             }
 
             if (isDone) {
@@ -1804,9 +1814,11 @@ public class MainActivity extends Activity {
                         boolean isWarmup = serie.has("warmup") && serie.getBoolean("warmup");
                         String warmupText = isWarmup ? " (Aquecimento)" : "";
                         String descansoText = (serie.has("descanso") && !serie.isNull("descanso") && serie.getInt("descanso") > 0) ? " | Descanso: " + serie.getInt("descanso") + "s" : "";
+                        double load = serie.getDouble("load");
+                        String loadText = load == 0 ? "Sem carga" : load + "kg";
                         
                         TextView serieInfo = new TextView(this);
-                        serieInfo.setText((s + 1) + "x " + serie.getInt("reps") + " reps  " + serie.getDouble("load") + "kg" + warmupText + descansoText);
+                        serieInfo.setText((s + 1) + "x " + serie.getInt("reps") + " reps  " + loadText + warmupText + descansoText);
                         serieInfo.setTextColor(Color.parseColor("#aaaaaa"));
                         serieInfo.setTextSize(11);
                         serieInfo.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
@@ -1888,7 +1900,7 @@ public class MainActivity extends Activity {
             layout.addView(repsInput);
 
             TextView loadLabel = new TextView(this);
-            loadLabel.setText("Carga (kg) *");
+            loadLabel.setText("Carga (kg)");
             loadLabel.setTextColor(Color.parseColor("#888888"));
             loadLabel.setTextSize(12);
             layout.addView(loadLabel);
@@ -1923,8 +1935,11 @@ public class MainActivity extends Activity {
             builder.setPositiveButton("Salvar", (dialog, which) -> {
                 try {
                     int reps = Integer.parseInt(repsInput.getText().toString().trim());
+                    if (reps < 1) {
+                        throw new NumberFormatException();
+                    }
                     double load = Double.parseDouble(loadInput.getText().toString().trim());
-                    if (reps < 1 || load <= 0) {
+                    if (load < 0) {
                         throw new NumberFormatException();
                     }
                     serie.put("reps", reps);
@@ -2501,14 +2516,14 @@ public class MainActivity extends Activity {
             layout.addView(repsInput);
 
             TextView loadLabel = new TextView(this);
-            loadLabel.setText("Carga (kg) *");
+            loadLabel.setText("Carga (kg)");
             loadLabel.setTextColor(Color.parseColor("#888888"));
             loadLabel.setTextSize(12);
             layout.addView(loadLabel);
 
             final EditText loadInput = new EditText(this);
             loadInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
-            loadInput.setText("20");
+            loadInput.setText("0");
             loadInput.setBackgroundColor(Color.parseColor("#0d0d0d"));
             loadInput.setTextColor(Color.parseColor("#ffffff"));
             layout.addView(loadInput);
@@ -2535,8 +2550,11 @@ public class MainActivity extends Activity {
             builder.setPositiveButton("Adicionar Serie", (dialog, which) -> {
                 try {
                     int reps = Integer.parseInt(repsInput.getText().toString().trim());
+                    if (reps < 1) {
+                        throw new NumberFormatException();
+                    }
                     double load = Double.parseDouble(loadInput.getText().toString().trim());
-                    if (reps < 1 || load <= 0) {
+                    if (load < 0) {
                         throw new NumberFormatException();
                     }
                     
