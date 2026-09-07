@@ -1,3 +1,4 @@
+cd ~/AcademiaApp
 cat > src/main/java/com/academia/app/MainActivity.java << 'EOF'
 package com.academia.app;
 
