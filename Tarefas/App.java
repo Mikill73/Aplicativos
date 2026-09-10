@@ -3,8 +3,10 @@ cat > src/main/java/com/task/app/MainActivity.java << 'EOF'
 package com.task.app;
 
 import android.app.Activity;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.ScrollView;
@@ -15,6 +17,7 @@ import android.graphics.Color;
 import android.view.ViewGroup;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.InputType;
 import java.io.*;
 import java.net.*;
 import java.util.*;
@@ -29,7 +32,7 @@ public class MainActivity extends Activity {
     private String fileSha = null;
     private Handler mainHandler = new Handler(Looper.getMainLooper());
     private boolean isLoading = false;
-    private String GITHUB_TOKEN = "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";
+    private String GITHUB_TOKEN = "";
     private String GITHUB_USER = "Mikill73";
     private String GITHUB_REPO = "Desenvolvimento";
     private String FILE_PATH = "Perfis/Rotina.json";
@@ -38,18 +41,101 @@ public class MainActivity extends Activity {
     private TextView descText;
     private View descOverlay;
     private int trophyCount = 0;
+    private SharedPreferences prefs;
+    private LinearLayout tokenScreen;
+    private EditText tokenInput;
+    private LinearLayout mainScreen;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
 
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setBackgroundColor(Color.parseColor("#0d0d0d"));
-        layout.setLayoutParams(new LinearLayout.LayoutParams(
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(Color.parseColor("#0d0d0d"));
+        root.setLayoutParams(new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         ));
+
+        tokenScreen = new LinearLayout(this);
+        tokenScreen.setOrientation(LinearLayout.VERTICAL);
+        tokenScreen.setGravity(Gravity.CENTER);
+        tokenScreen.setPadding(40, 40, 40, 40);
+        tokenScreen.setBackgroundColor(Color.parseColor("#0d0d0d"));
+        tokenScreen.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+
+        TextView tokenTitle = new TextView(this);
+        tokenTitle.setText("Token do GitHub");
+        tokenTitle.setTextColor(Color.WHITE);
+        tokenTitle.setTextSize(24);
+        tokenTitle.setGravity(Gravity.CENTER);
+        tokenTitle.setPadding(0, 0, 0, 20);
+        tokenScreen.addView(tokenTitle);
+
+        TextView tokenDesc = new TextView(this);
+        tokenDesc.setText("Cole seu token pessoal do GitHub abaixo");
+        tokenDesc.setTextColor(Color.parseColor("#888888"));
+        tokenDesc.setTextSize(14);
+        tokenDesc.setGravity(Gravity.CENTER);
+        tokenDesc.setPadding(0, 0, 0, 30);
+        tokenScreen.addView(tokenDesc);
+
+        tokenInput = new EditText(this);
+        tokenInput.setHint("github_pat_...");
+        tokenInput.setHintTextColor(Color.parseColor("#666666"));
+        tokenInput.setTextColor(Color.WHITE);
+        tokenInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        tokenInput.setBackgroundColor(Color.parseColor("#1a1a1a"));
+        tokenInput.setPadding(20, 15, 20, 15);
+        tokenInput.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        ));
+        tokenScreen.addView(tokenInput);
+
+        Button saveTokenBtn = new Button(this);
+        saveTokenBtn.setText("Salvar Token");
+        saveTokenBtn.setTextColor(Color.WHITE);
+        saveTokenBtn.setBackgroundColor(Color.parseColor("#ff6b00"));
+        saveTokenBtn.setPadding(20, 15, 20, 15);
+        saveTokenBtn.setTextSize(16);
+        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        btnParams.setMargins(0, 20, 0, 0);
+        saveTokenBtn.setLayoutParams(btnParams);
+        saveTokenBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String token = tokenInput.getText().toString().trim();
+                if (token.isEmpty()) {
+                    Toast.makeText(MainActivity.this, "Token vazio!", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                prefs.edit().putString("github_token", token).apply();
+                GITHUB_TOKEN = token;
+                tokenScreen.setVisibility(View.GONE);
+                mainScreen.setVisibility(View.VISIBLE);
+                carregarTarefas();
+            }
+        });
+        tokenScreen.addView(saveTokenBtn);
+
+        root.addView(tokenScreen);
+
+        mainScreen = new LinearLayout(this);
+        mainScreen.setOrientation(LinearLayout.VERTICAL);
+        mainScreen.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+        mainScreen.setVisibility(View.GONE);
 
         LinearLayout topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.HORIZONTAL);
@@ -86,7 +172,23 @@ public class MainActivity extends Activity {
         });
         topBar.addView(refreshBtn);
 
-        layout.addView(topBar);
+        Button editTokenBtn = new Button(this);
+        editTokenBtn.setText("🔑");
+        editTokenBtn.setTextColor(Color.WHITE);
+        editTokenBtn.setTextSize(20);
+        editTokenBtn.setBackgroundColor(Color.TRANSPARENT);
+        editTokenBtn.setPadding(10, 0, 10, 0);
+        editTokenBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                tokenInput.setText(GITHUB_TOKEN);
+                mainScreen.setVisibility(View.GONE);
+                tokenScreen.setVisibility(View.VISIBLE);
+            }
+        });
+        topBar.addView(editTokenBtn);
+
+        mainScreen.addView(topBar);
 
         statusText = new TextView(this);
         statusText.setText("Carregando...");
@@ -94,7 +196,7 @@ public class MainActivity extends Activity {
         statusText.setTextSize(14);
         statusText.setGravity(Gravity.CENTER);
         statusText.setPadding(20, 20, 20, 20);
-        layout.addView(statusText);
+        mainScreen.addView(statusText);
 
         scrollView = new ScrollView(this);
         scrollView.setLayoutParams(new LinearLayout.LayoutParams(
@@ -113,7 +215,10 @@ public class MainActivity extends Activity {
         ));
 
         scrollView.addView(taskContainer);
-        layout.addView(scrollView);
+        mainScreen.addView(scrollView);
+
+        root.addView(mainScreen);
+        setContentView(root);
 
         descOverlay = new View(this);
         descOverlay.setBackgroundColor(Color.parseColor("#88000000"));
@@ -185,8 +290,15 @@ public class MainActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT
         ));
 
-        setContentView(layout);
-        carregarTarefas();
+        GITHUB_TOKEN = prefs.getString("github_token", "");
+        if (GITHUB_TOKEN.isEmpty()) {
+            tokenScreen.setVisibility(View.VISIBLE);
+            mainScreen.setVisibility(View.GONE);
+        } else {
+            tokenScreen.setVisibility(View.GONE);
+            mainScreen.setVisibility(View.VISIBLE);
+            carregarTarefas();
+        }
     }
 
     private void fecharDescricao() {
