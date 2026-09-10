@@ -1,4 +1,5 @@
 PACKAGE_NAME=com.academia.app
+FOLDER_NAME=AcademiaApp
 MAIN_ACTIVITY=MainActivity
 SRC_PATH=src/main/java/com/academia/app
 MANIFEST_PATH=src/main/AndroidManifest.xml
