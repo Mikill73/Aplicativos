@@ -285,42 +285,36 @@ public class MainActivity extends Activity {
         boolean mudou = false;
 
         for (JSONObject task : taskList) {
-            boolean deveEstarConcluida = false;
-
-            if (task.has("completedAt") && !task.isNull("completedAt")) {
-                long completedAt = task.optLong("completedAt", 0);
-                if (completedAt > 0 && (agora - completedAt) > umDia) {
-                    try {
+            try {
+                if (task.has("completedAt") && !task.isNull("completedAt")) {
+                    long completedAt = task.optLong("completedAt", 0);
+                    if (completedAt > 0 && (agora - completedAt) > umDia) {
                         task.put("completed", false);
                         task.put("completedAt", JSONObject.NULL);
                         mudou = true;
                         continue;
-                    } catch (Exception e) {
-                        e.printStackTrace();
                     }
                 }
-            }
 
-            if (task.has("daysOfWeek")) {
-                JSONArray days = task.getJSONArray("daysOfWeek");
-                if (days.length() > 0) {
-                    boolean hojeTem = false;
-                    for (int i = 0; i < days.length(); i++) {
-                        if (days.getInt(i) == diaSemanaBrasil) {
-                            hojeTem = true;
-                            break;
+                if (task.has("daysOfWeek")) {
+                    JSONArray days = task.getJSONArray("daysOfWeek");
+                    if (days.length() > 0) {
+                        boolean hojeTem = false;
+                        for (int i = 0; i < days.length(); i++) {
+                            if (days.getInt(i) == diaSemanaBrasil) {
+                                hojeTem = true;
+                                break;
+                            }
                         }
-                    }
-                    if (!hojeTem) {
-                        try {
+                        if (!hojeTem) {
                             task.put("completed", false);
                             task.put("completedAt", JSONObject.NULL);
                             mudou = true;
-                        } catch (Exception e) {
-                            e.printStackTrace();
                         }
                     }
                 }
+            } catch (JSONException e) {
+                e.printStackTrace();
             }
         }
 
