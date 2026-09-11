@@ -45,6 +45,14 @@ public class MainActivity extends Activity {
     private LinearLayout tokenScreen;
     private EditText tokenInput;
     private LinearLayout mainScreen;
+    private JSONArray problems = new JSONArray();
+    private JSONArray problemSteps = new JSONArray();
+    private JSONArray settings = new JSONArray();
+    private JSONArray plans = new JSONArray();
+    private JSONArray planSteps = new JSONArray();
+    private JSONArray planSubSteps = new JSONArray();
+    private JSONArray history = new JSONArray();
+    private JSONArray sectionsArray = new JSONArray();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -446,9 +454,9 @@ public class MainActivity extends Activity {
         try {
             JSONObject root = new JSONObject(textContent);
             if (root.has("sections")) {
-                JSONArray sections = root.getJSONArray("sections");
-                for (int i = 0; i < sections.length(); i++) {
-                    JSONObject section = sections.getJSONObject(i);
+                sectionsArray = root.getJSONArray("sections");
+                for (int i = 0; i < sectionsArray.length(); i++) {
+                    JSONObject section = sectionsArray.getJSONObject(i);
                     int id = section.getInt("id");
                     String title = section.getString("title");
                     sectionTitles.put(id, title);
@@ -473,17 +481,59 @@ public class MainActivity extends Activity {
                     taskList.add(item);
                 }
             }
+            if (root.has("problems")) problems = root.getJSONArray("problems");
+            if (root.has("problemSteps")) problemSteps = root.getJSONArray("problemSteps");
+            if (root.has("settings")) settings = root.getJSONArray("settings");
+            if (root.has("plans")) plans = root.getJSONArray("plans");
+            if (root.has("planSteps")) planSteps = root.getJSONArray("planSteps");
+            if (root.has("planSubSteps")) planSubSteps = root.getJSONArray("planSubSteps");
+            if (root.has("history")) history = root.getJSONArray("history");
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    private boolean tarefaDisponivelHoje(JSONObject task) {
+        try {
+            Calendar hoje = Calendar.getInstance();
+            int diaSemanaHoje = hoje.get(Calendar.DAY_OF_WEEK);
+            int diaSemanaBrasil;
+            if (diaSemanaHoje == Calendar.SUNDAY) {
+                diaSemanaBrasil = 0;
+            } else {
+                diaSemanaBrasil = diaSemanaHoje - 1;
+            }
+
+            if (task.has("daysOfWeek")) {
+                JSONArray days = task.getJSONArray("daysOfWeek");
+                if (days.length() > 0) {
+                    for (int i = 0; i < days.length(); i++) {
+                        if (days.getInt(i) == diaSemanaBrasil) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            }
+            return true;
+        } catch (Exception e) {
+            return true;
         }
     }
 
     private void renderizarTarefas() {
         taskContainer.removeAllViews();
 
-        if (taskList.isEmpty()) {
+        List<JSONObject> disponiveis = new ArrayList<>();
+        for (JSONObject task : taskList) {
+            if (tarefaDisponivelHoje(task)) {
+                disponiveis.add(task);
+            }
+        }
+
+        if (disponiveis.isEmpty()) {
             TextView empty = new TextView(this);
-            empty.setText("Nenhuma tarefa encontrada.");
+            empty.setText("Nenhuma tarefa para hoje.");
             empty.setTextColor(Color.parseColor("#666666"));
             empty.setTextSize(16);
             empty.setGravity(Gravity.CENTER);
@@ -500,20 +550,20 @@ public class MainActivity extends Activity {
         trophyView.setPadding(0, 0, 0, 10);
         taskContainer.addView(trophyView);
 
-        Map<Integer, List<JSONObject>> sections = new HashMap<>();
-        for (JSONObject task : taskList) {
+        Map<Integer, List<JSONObject>> sectionsMap = new HashMap<>();
+        for (JSONObject task : disponiveis) {
             int sectionId = task.optInt("sectionId", 0);
-            if (!sections.containsKey(sectionId)) {
-                sections.put(sectionId, new ArrayList<JSONObject>());
+            if (!sectionsMap.containsKey(sectionId)) {
+                sectionsMap.put(sectionId, new ArrayList<JSONObject>());
             }
-            sections.get(sectionId).add(task);
+            sectionsMap.get(sectionId).add(task);
         }
 
-        List<Integer> sortedSectionIds = new ArrayList<>(sections.keySet());
+        List<Integer> sortedSectionIds = new ArrayList<>(sectionsMap.keySet());
         Collections.sort(sortedSectionIds);
 
         for (int sectionId : sortedSectionIds) {
-            List<JSONObject> items = sections.get(sectionId);
+            List<JSONObject> items = sectionsMap.get(sectionId);
             Collections.sort(items, new Comparator<JSONObject>() {
                 @Override
                 public int compare(JSONObject a, JSONObject b) {
