@@ -101,7 +101,7 @@ public class MainActivity extends Activity {
         Button saveTokenBtn = new Button(this);
         saveTokenBtn.setText("Salvar Token");
         saveTokenBtn.setTextColor(Color.WHITE);
-        saveTokenBtn.setBackgroundColor(Color.parseColor("#ff6b00"));
+        saveTokenBtn.setBackgroundColor(Color.parseColor("#333333"));
         saveTokenBtn.setPadding(20, 15, 20, 15);
         saveTokenBtn.setTextSize(16);
         LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
@@ -242,6 +242,7 @@ public class MainActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         ));
+        descLayout.setVisibility(View.GONE);
 
         descText = new TextView(this);
         descText.setTextColor(Color.parseColor("#cccccc"));
@@ -255,7 +256,7 @@ public class MainActivity extends Activity {
         Button closeBtn = new Button(this);
         closeBtn.setText("Fechar");
         closeBtn.setTextColor(Color.WHITE);
-        closeBtn.setBackgroundColor(Color.parseColor("#ff6b00"));
+        closeBtn.setBackgroundColor(Color.parseColor("#333333"));
         closeBtn.setPadding(20, 10, 20, 10);
         closeBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -274,6 +275,7 @@ public class MainActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         ));
+        centerLayout.setVisibility(View.GONE);
         centerLayout.addView(descLayout);
 
         LinearLayout overlayWrapper = new LinearLayout(this);
@@ -282,6 +284,7 @@ public class MainActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         ));
+        overlayWrapper.setVisibility(View.GONE);
         overlayWrapper.addView(descOverlay);
         overlayWrapper.addView(centerLayout);
 
@@ -304,6 +307,7 @@ public class MainActivity extends Activity {
     private void fecharDescricao() {
         descOverlay.setVisibility(View.GONE);
         descLayout.setVisibility(View.GONE);
+        ((View) descOverlay.getParent()).setVisibility(View.GONE);
     }
 
     private void carregarTarefas() {
@@ -683,6 +687,7 @@ public class MainActivity extends Activity {
             descText.setText(msg.toString());
             descOverlay.setVisibility(View.VISIBLE);
             descLayout.setVisibility(View.VISIBLE);
+            ((View) descOverlay.getParent()).setVisibility(View.VISIBLE);
 
         } catch (Exception e) {
             Toast.makeText(this, "Erro ao mostrar descricao", Toast.LENGTH_SHORT).show();
