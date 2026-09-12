@@ -1,3 +1,4 @@
+cd ~/CaixinhaApp
 cat > src/main/java/com/caixinha/app/MainActivity.java << 'EOF'
 package com.caixinha.app;
 
